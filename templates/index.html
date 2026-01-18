@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal RAG Tort - 侵害配偶權判決檢索系統</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8 mx-auto text-center">
+                    <h1 class="display-4 fw-bold mb-3">
+                        <i class="bi bi-search"></i> Legal RAG Tort
+                    </h1>
+                    <p class="lead mb-0">侵害配偶權判決 AI 檢索系統</p>
+                    <p class="mb-0">⚡ 5 秒內找到最相似的判決 | 🎯 AI 語義搜尋 | 📊 賠償金額統計</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mb-5">
+        <!-- Search Box -->
+        <div class="row mb-4">
+            <div class="col-lg-10 mx-auto">
+                <div class="search-box">
+                    <h5 class="mb-3">
+                        <i class="bi bi-pencil-square"></i> 輸入案情描述
+                    </h5>
+                    <form id="searchForm">
+                        <div class="mb-3">
+                            <textarea 
+                                class="form-control" 
+                                id="queryInput" 
+                                rows="4" 
+                                placeholder="例如：配偶與第三人多次在汽車旅館過夜，有監視器影像、信用卡簽單、親密簡訊..."
+                                required
+                            ></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="bi bi-search"></i> 搜尋相似判決
+                        </button>
+                    </form>
+                    
+                    <!-- Loading Indicator -->
+                    <div class="loading text-center mt-3" id="loading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">搜尋中...</span>
+                        </div>
+                        <p class="mt-2">AI 正在分析案情...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Section -->
+        <div id="statsSection" style="display: none;">
+            <div class="row">
+                <div class="col-lg-10 mx-auto">
+                    <div class="stats-card">
+                        <h5 class="mb-3">
+                            <i class="bi bi-bar-chart-fill"></i> 賠償金額統計
+                        </h5>
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <h6 class="text-muted">中位數</h6>
+                                <h4 class="text-primary" id="medianAmount">-</h4>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 class="text-muted">平均數</h6>
+                                <h4 class="text-info" id="avgAmount">-</h4>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 class="text-muted">最低</h6>
+                                <h4 class="text-success" id="minAmount">-</h4>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 class="text-muted">最高</h6>
+                                <h4 class="text-danger" id="maxAmount">-</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" style="display: none;">
+            <div class="row">
+                <div class="col-lg-10 mx-auto">
+                    <h5 class="mb-3">
+                        <i class="bi bi-file-earmark-text"></i> 搜尋結果 
+                        <span class="badge bg-secondary" id="resultCount">0</span>
+                    </h5>
+                    <div id="results">
+                        <!-- Results will be inserted here dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) {
+                alert('請輸入查詢內容');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('statsSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('搜尋失敗');
+                }
+                
+                const data = await response.json();
+                
+                // Hide loading
+                document.getElementById('loading').classList.remove('active');
+                
+                // Display stats
+                displayStats(data.stats);
+                
+                // Display results
+                displayResults(data.results);
+                
+            } catch (error) {
+                document.getElementById('loading').classList.remove('active');
+                alert('搜尋時發生錯誤: ' + error.message);
+            }
+        });
+        
+        function displayStats(stats) {
+            document.getElementById('medianAmount').textContent = 
+                stats.median_compensation ? `NT$ ${stats.median_compensation.toLocaleString()}` : '-';
+            document.getElementById('avgAmount').textContent = 
+                stats.avg_compensation ? `NT$ ${Math.round(stats.avg_compensation).toLocaleString()}` : '-';
+            document.getElementById('minAmount').textContent = 
+                stats.min_compensation ? `NT$ ${stats.min_compensation.toLocaleString()}` : '-';
+            document.getElementById('maxAmount').textContent = 
+                stats.max_compensation ? `NT$ ${stats.max_compensation.toLocaleString()}` : '-';
+            
+            document.getElementById('statsSection').style.display = 'block';
+        }
+        
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+            const resultCount = document.getElementById('resultCount');
+            
+            if (!results || results.length === 0) {
+                resultsDiv.innerHTML = '<p class="text-muted">沒有找到相關判決</p>';
+                resultCount.textContent = '0';
+                document.getElementById('resultsSection').style.display = 'block';
+                return;
+            }
+            
+            resultCount.textContent = results.length;
+            
+            resultsDiv.innerHTML = results.map((result, index) => `
+                <div class="result-card">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="mb-0">
+                            <span class="badge bg-primary me-2">#${index + 1}</span>
+                            ${result.title || '判決'}
+                        </h6>
+                        <div>
+                            ${result.is_overturned ? 
+                                '<span class="badge badge-overturned">已被推翻</span>' : 
+                                '<span class="badge badge-final">終局判決</span>'}
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-calendar"></i> ${result.date || 'N/A'} | 
+                        <i class="bi bi-cash"></i> 賠償金額: NT$ ${result.compensation ? result.compensation.toLocaleString() : 'N/A'}
+                    </p>
+                    <p class="mb-2">${result.summary || '摘要'}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-info">相似度: ${result.similarity ? (result.similarity * 100).toFixed(1) : 0}%</span>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewDetail('${result.id}')">
+                            <i class="bi bi-eye"></i> 查看全文
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+        
+        function viewDetail(judgmentId) {
+            // TODO: Implement judgment detail view
+            alert('判決詳細內容功能尚未實作');
+        }
+    </script>
+</body>
+</html>
