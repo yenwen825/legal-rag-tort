@@ -486,8 +486,8 @@ def main():
     
     logging.info(f"📊 載入 {len(raw_judgments)} 筆判決")
 
-    raw_judgments = raw_judgments[:10]
-    logging.info(f"⚠️  測試模式：只處理前 {len(raw_judgments)} 筆")
+    # raw_judgments = raw_judgments[:10]
+    # logging.info(f"⚠️  測試模式：只處理前 {len(raw_judgments)} 筆")
     
     # 3. 設定進度檔案路徑
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -520,7 +520,7 @@ def main():
     if start_index > 0:
         logging.info(f"⏭️  跳過前 {start_index} 筆判決（從進度檔案讀取）")
     
-    BATCH_SIZE = 10  # 每 100 筆存檔一次
+    BATCH_SIZE = 50  # 每 50 筆存檔一次
     batch_judgments = []
     batch_vectors = []
     
