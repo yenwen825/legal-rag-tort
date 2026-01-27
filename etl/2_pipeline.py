@@ -1,14 +1,3 @@
-"""
-2_pipeline.py
-判決資料清洗與向量化管道
-
-流程:
-1. 載入 raw/*.json 判決資料
-2. 使用 OpenAI 清洗與萃取關鍵資訊 (賠償金額、當事人、證據等)
-3. 生成 embedding 向量 (text-embedding-3-small)
-4. 儲存到 SQLite (legal_tort.db) 與 Numpy (vectors.npy)
-"""
-
 import os
 import json
 import sqlite3
@@ -32,7 +21,6 @@ client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # 配置 logging
 def setup_logging():
-    """配置日誌系統"""
     log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
     os.makedirs(log_dir, exist_ok=True)
     
@@ -140,7 +128,6 @@ class GPTExtractedData(BaseModel):
 
 
 class JudgmentExtracted(BaseModel):
-    """萃取的判決結構化資料"""
     # 基本資訊
     title: str
     case_number: str
@@ -152,11 +139,11 @@ class JudgmentExtracted(BaseModel):
     facts: str
     reasoning: str
     decision: str
+    full_text: str
     evidence_types: List[str]
 
 
 def load_raw_judgments() -> List[Dict]:
-    """載入 data/judgments_all_spouse_tort.json 判決資料"""
     base_dir = os.path.join(os.path.dirname(__file__), '..')
     judgment_file = os.path.join(base_dir, 'data', 'judgments_all_spouse_tort.json')
     
@@ -178,15 +165,6 @@ def load_raw_judgments() -> List[Dict]:
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 def extract_judgment_info(raw_judgment: Dict) -> Optional[JudgmentExtracted]:
-    """
-    萃取判決關鍵資訊（直接取得 + GPT 萃取）
-    
-    Args:
-        raw_judgment: 原始判決資料（來自 judgments_all_spouse_tort.json）
-    
-    Returns:
-        結構化的判決資料，若萃取失敗則回傳 None
-    """
     try:
         # ===== 階段 1：直接從 JSON 取得基本資訊 =====
         title = raw_judgment.get('JTITLE', '').strip()
@@ -296,6 +274,7 @@ def extract_judgment_info(raw_judgment: Dict) -> Optional[JudgmentExtracted]:
             facts=gpt_data.facts,
             reasoning=gpt_data.reasoning,
             decision=decision,  # 直接從 JFULL 切割取得
+            full_text=jfull,  
             evidence_types=gpt_data.evidence_types
         )
         
@@ -379,7 +358,6 @@ def generate_embedding(judgment: JudgmentExtracted) -> Optional[List[float]]:
 
 
 def init_database():
-    """初始化 SQLite 資料庫"""
     db_path = os.path.join(os.path.dirname(__file__), '..', 'legal_tort.db')
     
     conn = sqlite3.connect(db_path)
@@ -396,6 +374,7 @@ def init_database():
             facts TEXT NOT NULL,
             reasoning TEXT NOT NULL,
             decision TEXT NOT NULL,
+            full_text TEXT,
             evidence_types TEXT,
             vector BLOB NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -410,13 +389,6 @@ def init_database():
 
 
 def save_to_database(judgments: List[JudgmentExtracted], vectors: List[List[float]]):
-    """
-    儲存判決到資料庫（包含向量 BLOB）
-    
-    Args:
-        judgments: 判決資料列表
-        vectors: 對應的向量列表（每個向量為 List[float]）
-    """
     db_path = os.path.join(os.path.dirname(__file__), '..', 'legal_tort.db')
     
     conn = sqlite3.connect(db_path)
@@ -432,8 +404,8 @@ def save_to_database(judgments: List[JudgmentExtracted], vectors: List[List[floa
         cursor.execute('''
             INSERT OR IGNORE INTO judgments 
             (title, case_number, court, date, compensation, 
-             facts, reasoning, decision, evidence_types, vector)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             facts, reasoning, decision, full_text, evidence_types, vector)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             judgment.title,
             judgment.case_number,
@@ -443,6 +415,7 @@ def save_to_database(judgments: List[JudgmentExtracted], vectors: List[List[floa
             judgment.facts,
             judgment.reasoning,
             judgment.decision,
+            judgment.full_text,
             json.dumps(judgment.evidence_types, ensure_ascii=False),
             vector_blob
         ))
@@ -465,7 +438,7 @@ def save_to_database(judgments: List[JudgmentExtracted], vectors: List[List[floa
 
 
 def main():
-    """主程式（支援批次存檔與斷點續傳）"""
+    """main function (supports batch saving and checkpoint resume)"""
     # 設定日誌
     log_file = setup_logging()
     
