@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, validator
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 
 
 class SearchRequest(BaseModel):
@@ -175,7 +175,7 @@ class HealthCheckResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     error: str = Field(..., description="錯誤訊息")
-    detail: Optional[str] = Field(None, description="詳細錯誤資訊")
+    detail: Optional[Union[str, List[Dict[str, Any]]]] = Field(None, description="詳細錯誤資訊（字串或 Pydantic 驗證錯誤 list）")
     
     class Config:
         json_schema_extra = {
