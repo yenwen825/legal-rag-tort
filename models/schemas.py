@@ -145,7 +145,6 @@ class JudgmentDetail(BaseModel):
     decision: str = Field(..., description="判決主文")
     full_text: str = Field(..., description="判決全文")
     evidence_types: Optional[List[str]] = Field(None, description="證據類型清單")
-    created_at: Optional[str] = Field(None, description="資料建立時間")
     
     class Config:
         json_schema_extra = {
@@ -161,7 +160,6 @@ class JudgmentDetail(BaseModel):
                 "decision": "被告應給付原告新臺幣壹拾伍萬元...",
                 "full_text": "臺灣桃園地方法院民事判決\r\n108年度婚字第201號\r\n109年度婚字第460號\r\n原      告  甲○○  住○○市○○區○○○路0段......",
                 "evidence_types": ["監視器影像", "信用卡簽單"],
-                "created_at": "2026-01-21 19:07:55"
             }
         }
 
