@@ -166,9 +166,11 @@ class JudgmentDetail(BaseModel):
 
 class HealthCheckResponse(BaseModel):
     status: str = Field(..., description="服務狀態", example="healthy")
-    database: str = Field(..., description="資料庫狀態", example="ok")
-    total_judgments: int = Field(..., description="資料庫判決總數")
+    database: dict = Field(..., description="資料庫狀態", example={"total_judgments": 10000, "total_compensations": 1000, "avg_compensation": 100000, "db_size_mb": 100})
+    vector_cache_status: str = Field(..., description="向量快取狀態", example="loaded")
+    vector_cache_count: int = Field(..., description="向量快取筆數")
     version: str = Field(..., description="API 版本", example="1.0.0")
+    timestamp: str = Field(..., description="檢查時間")
 
 
 class ErrorResponse(BaseModel):
