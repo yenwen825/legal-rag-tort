@@ -40,14 +40,6 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.badge-overturned {
-    background-color: #dc3545;
-}
-
-.badge-final {
-    background-color: #28a745;
-}
-
 .loading {
     display: none;
 }
