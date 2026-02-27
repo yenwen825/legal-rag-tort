@@ -1,35 +1,10 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Legal RAG Tort - 侵害配偶權判決檢索系統</title>
-    
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <!-- Hero Section -->
-    <div class="hero-section">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto text-center">
-                    <h1 class="display-4 fw-bold mb-3">
-                        <i class="bi bi-search"></i> Legal RAG Tort
-                    </h1>
-                    <p class="lead mb-0">侵害配偶權判決 AI 檢索系統</p>
-                    <p class="mb-0">⚡ 5 秒內找到最相似的判決 | 🎯 AI 語義搜尋 | 📊 賠償金額統計</p>
-                </div>
-            </div>
-        </div>
-    </div>
+{% extends "layout.html" %}
 
+{% block title %}
+    侵害配偶權判決 AI 檢索系統
+{% endblock %}
+
+{% block content %}
     <!-- Main Content -->
     <div class="container mb-5">
         <!-- Search Box -->
@@ -45,7 +20,8 @@
                                 class="form-control" 
                                 id="queryInput" 
                                 rows="4" 
-                                placeholder="例如：配偶與第三人多次在汽車旅館過夜，有監視器影像、信用卡簽單、親密簡訊..."
+                                placeholder="包含現有證據與相關事實。
+例如：配偶與第三人多次在汽車旅館過夜，有監視器影像、信用卡簽單、親密簡訊..."
                                 required
                             ></textarea>
                         </div>
@@ -111,7 +87,9 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -163,13 +141,13 @@
         
         function displayStats(stats) {
             document.getElementById('medianAmount').textContent = 
-                stats.median_compensation ? `NT$ ${stats.median_compensation.toLocaleString()}` : '-';
+                stats.median_compensation != null ? `NT$ ${stats.median_compensation.toLocaleString()}` : '-';
             document.getElementById('avgAmount').textContent = 
-                stats.avg_compensation ? `NT$ ${Math.round(stats.avg_compensation).toLocaleString()}` : '-';
+                stats.avg_compensation != null ? `NT$ ${Math.round(stats.avg_compensation).toLocaleString()}` : '-';
             document.getElementById('minAmount').textContent = 
-                stats.min_compensation ? `NT$ ${stats.min_compensation.toLocaleString()}` : '-';
+                stats.min_compensation != null ? `NT$ ${stats.min_compensation.toLocaleString()}` : '-';
             document.getElementById('maxAmount').textContent = 
-                stats.max_compensation ? `NT$ ${stats.max_compensation.toLocaleString()}` : '-';
+                stats.max_compensation != null ? `NT$ ${stats.max_compensation.toLocaleString()}` : '-';
             
             document.getElementById('statsSection').style.display = 'block';
         }
@@ -192,19 +170,15 @@
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h6 class="mb-0">
                             <span class="badge bg-primary me-2">#${index + 1}</span>
-                            ${result.title || '判決'}
+                            ${result.court || '-'}｜${result.case_number || '-'}
                         </h6>
-                        <div>
-                            ${result.is_overturned ? 
-                                '<span class="badge badge-overturned">已被推翻</span>' : 
-                                '<span class="badge badge-final">終局判決</span>'}
-                        </div>
                     </div>
                     <p class="text-muted small mb-2">
-                        <i class="bi bi-calendar"></i> ${result.date || 'N/A'} | 
-                        <i class="bi bi-cash"></i> 賠償金額: NT$ ${result.compensation ? result.compensation.toLocaleString() : 'N/A'}
+                        <i class="bi bi-calendar-event"></i> ${result.date || 'N/A'} | 
+                        <i class="bi bi-currency-dollar"></i> 賠償金額：${result.compensation != null ? result.compensation.toLocaleString() :'N/A'} 元
                     </p>
-                    <p class="mb-2">${result.summary || '摘要'}</p>
+                    <h6 class="mb-0">案情摘要：</h6>
+                    <p class="mb-2">${result.facts || '-'}</p>
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="badge bg-info">相似度: ${result.similarity ? (result.similarity * 100).toFixed(1) : 0}%</span>
                         <button class="btn btn-sm btn-outline-primary" onclick="viewDetail('${result.id}')">
@@ -218,9 +192,8 @@
         }
         
         function viewDetail(judgmentId) {
-            // TODO: Implement judgment detail view
-            alert('判決詳細內容功能尚未實作');
+            window.location.href = `/judgment/${judgmentId}`;
         }
     </script>
-</body>
-</html>
+
+{% endblock %}
