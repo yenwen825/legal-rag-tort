@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, model_validator
 from typing import List, Optional, Union, Dict, Any
 
 
@@ -66,7 +66,7 @@ class JudgmentResult(BaseModel):
 
 
 class CompensationStats(BaseModel):
-    total: int = Field(..., description="搜尋結果總數")
+    total: int = Field(..., ge=0, description="搜尋結果總數")
     median_compensation: int = Field(..., description="中位數賠償金額")
     avg_compensation: float = Field(..., description="平均賠償金額")
     min_compensation: int = Field(..., description="最低賠償金額")
@@ -89,6 +89,12 @@ class SearchResponse(BaseModel):
     stats: CompensationStats = Field(..., description="賠償金額統計")
     query: str = Field(..., description="原始查詢內容（echo back）")
     search_time_ms: Optional[int] = Field(None, description="搜尋耗時（毫秒）")
+
+    @model_validator(mode='after')
+    def check_results_and_stats(self):
+        if len(self.results) != self.stats.total:
+            raise ValueError("length of results and stats.total should be consistent")
+        return self
     
     class Config:
         json_schema_extra = {
@@ -120,7 +126,7 @@ class SearchResponse(BaseModel):
                     }
                 ],
                 "stats": {
-                    "total": 10,
+                    "total": 2,
                     "median_compensation": 120000,
                     "avg_compensation": 135500.0,
                     "min_compensation": 50000,
