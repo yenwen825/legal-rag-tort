@@ -1,14 +1,13 @@
-from pydantic import BaseModel, Field, validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from typing import List, Optional, Union, Dict, Any
 
 
 class SearchRequest(BaseModel):
     query: str = Field(
-        ..., 
+        ...,
         min_length=5,
         max_length=2000,
         description="案情描述，至少 5 個字",
-        example="配偶與第三人多次在汽車旅館過夜，有監視器影像和信用卡簽單"
     )
     top_k: int = Field(
         10,
@@ -22,11 +21,21 @@ class SearchRequest(BaseModel):
         le=1.0,
         description="最小相似度分數，預設為 0.0，表示不限制相似度分數"
     )
-    @validator('query')
-    def query_not_empty(cls, v):
-        """must not be empty"""
+
+    model_config = ConfigDict(
+        json_schema_extra = {
+            "example": {
+                "query": "配偶與第三人多次在汽車旅館過夜，有監視器影像和信用卡簽單",
+                "top_k": 10,
+                "min_similarity": 0.0,
+            }
+        }
+    )
+
+    @field_validator('query')
+    def query_not_empty(v: str) -> str:
         if not v.strip():
-            raise ValueError('查詢內容不能為空白')
+            raise ValueError('query cannot be empty')
         return v.strip()
 
 
@@ -48,7 +57,7 @@ class JudgmentResult(BaseModel):
         description="相似度分數 (0-1)"
     )
     
-    class Config:
+    model_config = ConfigDict(
         json_schema_extra = {
             "example": {
                 "id": 123,
@@ -63,6 +72,7 @@ class JudgmentResult(BaseModel):
                 "similarity": 0.87
             }
         }
+    )
 
 
 class CompensationStats(BaseModel):
@@ -72,7 +82,7 @@ class CompensationStats(BaseModel):
     min_compensation: int = Field(..., description="最低賠償金額")
     max_compensation: int = Field(..., description="最高賠償金額")
     
-    class Config:
+    model_config = ConfigDict(
         json_schema_extra = {
             "example": {
                 "total": 10,
@@ -82,7 +92,7 @@ class CompensationStats(BaseModel):
                 "max_compensation": 300000
             }
         }
-
+    )
 
 class SearchResponse(BaseModel):
     results: List[JudgmentResult] = Field(..., description="判決搜尋結果清單")
@@ -96,7 +106,7 @@ class SearchResponse(BaseModel):
             raise ValueError("length of results and stats.total should be consistent")
         return self
     
-    class Config:
+    model_config = ConfigDict(
         json_schema_extra = {
             "example": {
                 "results": [
@@ -136,7 +146,7 @@ class SearchResponse(BaseModel):
                 "search_time_ms": 245
             }
         }
-
+    )
 
 class JudgmentDetail(BaseModel):
     """full judgment details"""
@@ -152,7 +162,7 @@ class JudgmentDetail(BaseModel):
     full_text: str = Field(..., description="判決全文")
     evidence_types: Optional[List[str]] = Field(None, description="證據類型清單")
     
-    class Config:
+    model_config = ConfigDict(
         json_schema_extra = {
             "example": {
                 "id": 123,
@@ -168,25 +178,38 @@ class JudgmentDetail(BaseModel):
                 "evidence_types": ["監視器影像", "信用卡簽單"],
             }
         }
-
+    )
 
 class HealthCheckResponse(BaseModel):
-    status: str = Field(..., description="服務狀態", example="healthy")
-    database: dict = Field(..., description="資料庫狀態", example={"total_judgments": 10000, "total_compensations": 1000, "avg_compensation": 100000, "db_size_mb": 100})
-    vector_cache_status: str = Field(..., description="向量快取狀態", example="loaded")
+    status: str = Field(..., description="服務狀態")
+    database: dict = Field(..., description="資料庫狀態")
+    vector_cache_status: str = Field(..., description="向量快取狀態")
     vector_cache_count: int = Field(..., description="向量快取筆數")
-    version: str = Field(..., description="API 版本", example="1.0.0")
+    version: str = Field(..., description="API 版本")
     timestamp: str = Field(..., description="檢查時間")
 
+    model_config = ConfigDict(
+        json_schema_extra = {
+            "example": {
+                "status": "healthy",
+                "database": {"total_judgments": 10000, "total_compensations": 1000, "avg_compensation": 100000, "db_size_mb": 100},
+                "vector_cache_status": "loaded",
+                "vector_cache_count": 100,
+                "version": "1.0.0",
+                "timestamp": "2024-01-01T12:00:00",
+            }
+        }
+    )
 
 class ErrorResponse(BaseModel):
     error: str = Field(..., description="錯誤訊息")
     detail: Optional[Union[str, List[Dict[str, Any]]]] = Field(None, description="詳細錯誤資訊（字串或 Pydantic 驗證錯誤 list）")
     
-    class Config:
+    model_config = ConfigDict(
         json_schema_extra = {
             "example": {
                 "error": "查詢內容不能為空白",
                 "detail": "請輸入至少 5 個字的案情描述"
             }
         }
+    )
