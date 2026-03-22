@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, request
 from services.search_service import search_judgments
 from models.schemas import SearchRequest, SearchResponse, ErrorResponse
-from datetime import datetime
 from pydantic import ValidationError
 
 search_bp = Blueprint('search', __name__)

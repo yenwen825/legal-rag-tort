@@ -49,11 +49,13 @@ data/
 *.zip
 *.db
 *.npy
-exports/                # ETL 匯出檔案（可重新生成）
+
+# ETL export files
+exports/               
 
 # Logs
 *.log
 
-# Cursor AI
-cursor_handoff.md       # Cursor 臨時檔案
-.cursor/                # Cursor 配置
+# Cursor 臨時檔案
+cursor_handoff.md      
+.cursor/                
