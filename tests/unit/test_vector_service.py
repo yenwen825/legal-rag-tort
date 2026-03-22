@@ -21,6 +21,7 @@ def test_get_vector_cache(tmp_path, monkeypatch):
         cursor.execute("INSERT INTO judgments (vector) VALUES (?)", (vec1.tobytes(),))
         cursor.execute("INSERT INTO judgments (vector) VALUES (?)", (vec2.tobytes(),))
         cursor.execute("INSERT INTO judgments (vector) VALUES (?)", (vec3.tobytes(),))
+    clear_vector_cache()
     ids, vector_matrix = get_vector_cache()
     assert ids.shape[0] == 3
     assert vector_matrix.shape[0] == 3

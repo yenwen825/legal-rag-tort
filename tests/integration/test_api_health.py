@@ -4,6 +4,7 @@ from models.database import get_db
 import json
 import numpy as np
 from api import health
+from services import clear_vector_cache
 
 def test_health_check(client, tmp_path, monkeypatch):
     test_db_path = tmp_path / "test.db"
@@ -14,6 +15,7 @@ def test_health_check(client, tmp_path, monkeypatch):
         cursor.execute("CREATE TABLE judgments (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, case_number TEXT, court TEXT, date TEXT, compensation INTEGER, facts TEXT, reasoning TEXT, decision TEXT, full_text TEXT, evidence_types TEXT, vector BLOB)")
         cursor.execute("INSERT INTO judgments (title, case_number, court, date, compensation, facts, reasoning, decision, full_text, evidence_types, vector) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", ("案由", "112年度訴字第972號", "臺灣新北地方法院", "20210615", 200000, "事實", "理由", "主文", "判決全文", json.dumps(["定位截圖","錄影畫面","現場照片"]), np.random.rand(1536).astype(np.float32).tobytes()))
     
+    clear_vector_cache()
     response = client.get('/api/health')
     assert response.status_code == 200
     data = response.get_json()
