@@ -109,8 +109,8 @@ def main():
     
     # 檢查 extracted 資料夾是否存在
     if not os.path.exists(extracted_base):
-        logging.error(f"找不到 data/extracted/ 資料夾")
-        logging.error(f"請先解壓縮 RAR 檔案到 data/extracted/")
+        logging.error("找不到 data/extracted/ 資料夾")
+        logging.error("請先解壓縮 RAR 檔案到 data/extracted/")
         return
     
     # 掃描所有月份資料夾（202401-202510）
@@ -119,7 +119,7 @@ def main():
                            and (f.startswith('2024') or f.startswith('2025'))])
     
     if not month_folders:
-        logging.error(f"找不到任何月份資料夾（202401-202510）")
+        logging.error("找不到任何月份資料夾（202401-202510）")
         return
     
     logging.info(f"找到 {len(month_folders)} 個月份: {', '.join(month_folders)}")
@@ -155,13 +155,13 @@ def main():
     
     # 檢查結果
     if not all_judgments:
-        logging.error(f"所有月份都沒有找到符合條件的判決")
+        logging.error("所有月份都沒有找到符合條件的判決")
         if os.path.exists(progress_file):
             os.remove(progress_file)
         return
     
     # 儲存正式版
-    logging.info(f"儲存最終結果...")
+    logging.info("儲存最終結果...")
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(all_judgments, f, ensure_ascii=False, indent=2)
@@ -181,7 +181,7 @@ def main():
     logging.info(f"檔案大小: {file_size_mb:.1f} MB")
     logging.info(f"篩選率: {len(all_judgments) / total_json_count * 100:.2f}%")
     logging.info(f"輸出: {output_file}")
-    logging.info(f"下一步: python etl/pipeline.py")
+    logging.info("下一步: python etl/pipeline.py")
 
 
 if __name__ == "__main__":

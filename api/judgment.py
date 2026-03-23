@@ -9,12 +9,12 @@ def judgment(id: int):
     try:
         response: JudgmentDetail = get_judgment_by_id(id)
         return jsonify(response.model_dump()), 200
-    except ValueError as e:
+    except ValueError:
         return jsonify(ErrorResponse(
             error = 'judgment not found',
             detail = None
         ).model_dump()), 404
-    except Exception as e:
+    except Exception:
         return jsonify(ErrorResponse(
             error = 'internal server error',
             detail = None

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template
 from api import register_blueprints
 import os
 from dotenv import load_dotenv

@@ -59,14 +59,14 @@ def export_to_excel():
                 try:
                     if len(str(cell.value)) > max_length:
                         max_length = len(str(cell.value))
-                except:
+                except Exception:
                     pass
             
             # 設定欄位寬度（最大 50，最小 10）
             adjusted_width = min(max(max_length, 10), 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
     
-    print(f"✅ 匯出完成！")
+    print("✅ 匯出完成！")
     print(f"📁 檔案位置: {output_file}")
     print(f"📊 共匯出 {len(df)} 筆判決")
     

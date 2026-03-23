@@ -1,7 +1,6 @@
 from services import search_service
 from services.search_service import search_judgments
 import numpy as np
-import pytest
 from models import database
 from models.database import get_db
 import sqlite3

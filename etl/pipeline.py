@@ -150,7 +150,7 @@ def load_raw_judgments() -> List[Dict]:
     
     if not os.path.exists(judgment_file):
         logging.error(f"找不到判決檔案: {judgment_file}")
-        logging.error(f"請先執行 etl/fetch_data.py")
+        logging.error("請先執行 etl/fetch_data.py")
         return []
     
     try:

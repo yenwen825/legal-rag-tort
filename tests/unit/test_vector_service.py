@@ -1,11 +1,9 @@
-from services import vector_service
 from services.vector_service import get_vector_cache, clear_vector_cache, load_vector_data, query_embeddings, cosine_similarity
 import services.vector_service as vector_service
 from models import database
 from models.database import get_db
 import numpy as np
 import sqlite3
-import pytest
 from unittest.mock import MagicMock, patch
 
 def test_get_vector_cache(tmp_path, monkeypatch):

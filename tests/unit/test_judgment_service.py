@@ -1,4 +1,3 @@
-from services import judgment_service
 import pytest
 import sqlite3
 from models import database
