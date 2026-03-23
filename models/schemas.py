@@ -10,10 +10,10 @@ class SearchRequest(BaseModel):
         description="案情描述，至少 5 個字",
     )
     top_k: int = Field(
-        10,
+        20,
         ge=1,
         le=50,
-        description="回傳最相似的前 N 筆判決，預設 10 筆"
+        description="回傳最相似的前 N 筆判決，預設 20 筆"
     )
     min_similarity: float = Field(
         0.0,
@@ -26,7 +26,7 @@ class SearchRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "query": "配偶與第三人多次在汽車旅館過夜，有監視器影像和信用卡簽單",
-                "top_k": 10,
+                "top_k": 20,
                 "min_similarity": 0.0,
             }
         }

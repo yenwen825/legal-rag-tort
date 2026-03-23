@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
+from etl.court_parser import get_court
 
 # 載入環境變數
 load_dotenv()
@@ -149,7 +150,7 @@ def load_raw_judgments() -> List[Dict]:
     
     if not os.path.exists(judgment_file):
         logging.error(f"找不到判決檔案: {judgment_file}")
-        logging.error(f"請先執行 1_fetch_data.py")
+        logging.error(f"請先執行 etl/fetch_data.py")
         return []
     
     try:
@@ -199,10 +200,8 @@ def extract_judgment_info(raw_judgment: Dict) -> Optional[JudgmentExtracted]:
                 f"接近 gpt-4o-mini 的 128K token 限制，可能會被截斷或失敗"
             )
         
-        # 取得法院名稱（從 JFULL 第一行取得，移除「民事判決」之後的內容）
-        first_line = jfull.split('\n')[0].strip()
-        court = first_line.split('民事判決')[0].strip() if '民事判決' in first_line else first_line
-        
+        court = get_court(jfull, case_number)
+ 
         # 取得判決主文（從「主文」到「事實」之間的內容）
         # 使用正則表達式匹配，允許「主文」和「事實」中間有空格或全形空格
         decision = ""
@@ -454,7 +453,7 @@ def main():
     raw_judgments = load_raw_judgments()
     
     if not raw_judgments:
-        logging.error("沒有找到原始判決資料，請先執行 1_fetch_data.py")
+        logging.error("沒有找到原始判決資料，請先執行 etl/fetch_data.py")
         return
     
     logging.info(f"📊 載入 {len(raw_judgments)} 筆判決")

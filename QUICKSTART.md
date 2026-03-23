@@ -19,7 +19,7 @@ python verify_setup.py
 # 5. 準備原始資料 (首次使用)
 # 手動下載判決 JSON 並放到 data/raw/ 資料夾
 # 然後執行資料清洗與向量化
-python etl/2_pipeline.py    # 處理資料 (30-60分鐘)
+python etl/pipeline.py    # 處理資料 (30-60分鐘)
 
 # 6. 啟動應用
 python app.py
@@ -34,7 +34,7 @@ python app.py
 | 指令 | 說明 |
 |------|------|
 | `python verify_setup.py` | 驗證專案設置 |
-| `python etl/2_pipeline.py` | 資料清洗與向量化 (需先手動上傳原始 JSON 到 data/raw/) |
+| `python etl/pipeline.py` | 資料清洗與向量化 (需先手動上傳原始 JSON 到 data/raw/) |
 | `python app.py` | 啟動開發伺服器 |
 | `gunicorn -w 4 app:app` | 啟動生產伺服器 |
 
@@ -88,7 +88,7 @@ cat .env
 ### 錯誤 3: `sqlite3.OperationalError: no such table`
 ```bash
 # 解決: 執行 ETL 建立資料庫
-python etl/2_pipeline.py
+python etl/pipeline.py
 ```
 
 ### 錯誤 4: 搜尋沒有結果

@@ -60,7 +60,7 @@ data/raw/judgments_114.json
 ## 📋 步驟 5: 執行資料清洗與向量化
 
 ```bash
-python etl/2_pipeline.py
+python etl/pipeline.py
 ```
 
 這會產生：
@@ -95,7 +95,7 @@ python app.py
 ### Q2: ETL 流程會花多少時間？
 
 - **準備資料**: 手動下載並上傳到 `data/raw/`
-- **2_pipeline.py**: 約 30-60 分鐘（需要呼叫 OpenAI API 處理每筆判決，處理約 2,000 筆）
+- **pipeline.py**: 約 30-60 分鐘（需要呼叫 OpenAI API 處理每筆判決，處理約 2,000 筆）
 
 ### Q3: 會產生多少 API 費用？
 
