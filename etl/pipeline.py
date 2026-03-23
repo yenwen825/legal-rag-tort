@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
+from etl.court_parser import get_court
 
 # 載入環境變數
 load_dotenv()
@@ -161,42 +162,6 @@ def load_raw_judgments() -> List[Dict]:
     except Exception as e:
         logging.error(f"載入判決檔案失敗: {e}")
         return []
-
-
-def get_court(jfull: str, case_number: str) -> str:
-        # 取得法院名稱
-        # 臺灣臺中地方法院臺中簡易庭小額民事判決 >>> 臺灣臺中地方法院
-        # 臺灣桃園地方法院民事簡易判決 >>> 臺灣桃園地方法院
-        # 臺灣臺北地方法院簡易民事判決 >>> 臺灣臺北地方法院
-        # 臺灣高等法院臺中分院民事判決 >>> 臺灣高等法院臺中分院
-        # 臺灣南投地方法院民事裁定 >>> 臺灣南投地方法院
-        # 5臺灣桃園地方法院民事簡易判決 >>> 臺灣桃園地方法院
-        #「宣示判決筆錄」 >>> 臺灣板橋地方法院（例：112年度板簡字第1751號）
-        # 目前無法處理：「臺灣○○地方法院」（113年度訴字第369號）、「智慧財產與商業法院」
-        first_line = jfull.split('\n')[0].strip()
-        court_pattern = r'^.*?(臺灣|福建|最高).*?(法院.*?分院|法院)'
-        match = re.search(court_pattern, first_line)
-        if match:
-            court = match.group(0)
-        else:
-            match = re.search(r"宣[\s\u3000]*示[\s\u3000]*判[\s\u3000]*決[\s\u3000]*筆[\s\u3000]*錄", first_line)
-            if match:
-                pattern = r"中[\s\u3000]*華[\s\u3000]*民[\s\u3000]*國.*?日([\s\S]{0,100}?)書[\s\u3000]*記[\s\u3000]*官"
-                blocks = re.findall(pattern, jfull)
-                court = None
-                for block in reversed(blocks):
-                    if "法院" in block:
-                        raw_court_line = block.strip()
-                        clean_match = re.search(court_pattern, raw_court_line)
-                        court = clean_match.group(0) if clean_match else raw_court_line
-                        break  
-                if not court:
-                    logging.warning(f"宣示判決筆錄找不到法院名稱: {case_number}")
-                    court = first_line  
-            else:
-                logging.warning(f"無法萃取法院名稱: {case_number}")
-                court = first_line  
-        return court
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
