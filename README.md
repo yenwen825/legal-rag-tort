@@ -34,8 +34,9 @@ legal-rag-tort/
 ├── data/
 │   └── raw/                # 原始判決 JSON (手動上傳)
 └── etl/
-    ├── 1_fetch_data.py     # 讀取處理判決資料
-    └── 2_pipeline.py       # 資料清洗與向量化
+    ├── fetch_data.py       # 讀取處理判決資料
+    ├── pipeline.py         # 資料清洗與向量化
+    └── export_to_excel.py  # 匯出 Excel（可選）
 ```
 
 ## 🚀 快速開始
@@ -67,7 +68,7 @@ OPENAI_API_KEY=sk-your-api-key-here
 #### Step 2: 清洗與向量化
 
 ```bash
-python etl/2_pipeline.py
+python etl/pipeline.py
 ```
 
 這會:

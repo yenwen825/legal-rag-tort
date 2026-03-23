@@ -86,8 +86,8 @@ def main():
         check_file('requirements.txt', 'requirements.txt'),
         check_file('README.md', 'README.md'),
         check_file('templates/index.html', 'templates/index.html'),
-        check_file('etl/1_fetch_data.py', 'etl/1_fetch_data.py'),
-        check_file('etl/2_pipeline.py', 'etl/2_pipeline.py'),
+        check_file('etl/fetch_data.py', 'etl/fetch_data.py'),
+        check_file('etl/pipeline.py', 'etl/pipeline.py'),
         check_file('.gitignore', '.gitignore')
     ])
     
@@ -101,8 +101,8 @@ def main():
     if dirs_ok and files_ok and env_ok and packages_ok:
         print("🎉 專案設置完成！可以開始使用")
         print("\n下一步:")
-        print("  1. python etl/1_fetch_data.py  # 下載判決資料")
-        print("  2. python etl/2_pipeline.py    # 清洗與向量化")
+        print("  1. python etl/fetch_data.py  # 下載判決資料")
+        print("  2. python etl/pipeline.py    # 清洗與向量化")
         print("  3. python app.py               # 啟動 Web 應用")
         return 0
     else:

@@ -181,7 +181,7 @@ def main():
     logging.info(f"檔案大小: {file_size_mb:.1f} MB")
     logging.info(f"篩選率: {len(all_judgments) / total_json_count * 100:.2f}%")
     logging.info(f"輸出: {output_file}")
-    logging.info(f"下一步: python etl/2_pipeline.py")
+    logging.info(f"下一步: python etl/pipeline.py")
 
 
 if __name__ == "__main__":

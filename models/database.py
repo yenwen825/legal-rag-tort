@@ -68,7 +68,7 @@ def init_db():
     初始化資料庫（檢查表是否存在）
     
     注意：
-        - 實際的表結構已由 etl/2_pipeline.py 建立
+        - 實際的表結構已由 etl/pipeline.py 建立
         - 這裡只做驗證，不重新建立
     """
     with get_db() as conn:
@@ -82,7 +82,7 @@ def init_db():
         
         if cursor.fetchone() is None:
             raise RuntimeError(
-                "資料庫表不存在！請先執行 ETL pipeline (etl/2_pipeline.py)"
+                "資料庫表不存在！請先執行 ETL pipeline (etl/pipeline.py)"
             )
         
         # 檢查資料筆數
