@@ -1,0 +1,46 @@
+name: Python CI Pipeline
+
+# 觸發條件 (Events)
+on:
+  push:
+    branches: [ "main" ] # 直接 push 到 main 時觸發
+  pull_request:
+    branches: [ "main" ] # 任何人發 PR 想合併到 main 時觸發
+
+# 任務內容 (Jobs)
+jobs:
+  test-and-lint:
+    # 指定虛擬機環境 (Runner)
+    runs-on: ubuntu-latest
+
+    # 具體執行步驟 (Steps)
+    steps:
+    # Step 1: 把 GitHub 上的程式碼抓到這台虛擬機裡
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    # Step 2: 在這台虛擬機上安裝 Python 3.11
+    - name: 🐍 Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip' # 開啟 pip 快取，以後跑 CI 會變快
+
+    # Step 3: 安裝專案需要的套件  
+    - name: 📦 Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # Step 4: 執行 Ruff 語法與排版檢查 (Smoke Check)
+    - name: 🧹 Run Ruff (Linting)
+      run: |
+        ruff check .
+
+    # Step 5: 執行 Pytest 測試
+    - name: 🧪 Run Pytest
+      # 如果你的測試會用到 OpenAI API，必須把環境變數傳進去 (稍後需要在 GitHub 網頁設定 Secret)
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        pytest tests/ -v
