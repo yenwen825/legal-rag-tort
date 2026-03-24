@@ -49,8 +49,7 @@ def check_packages():
         'dotenv',
         'tenacity',
         'pydantic',
-        'tqdm',
-        'requests'
+        'tqdm'
     ]
     
     all_installed = True
