@@ -144,7 +144,7 @@ if __name__ == '__main__':
         print(f"✅ Database initialized: {stats}")
         
         db_stats = get_db_stats()
-        print(f"📊 Database stats:")
+        print("📊 Database stats:")
         print(f"   - Total judgments: {db_stats['total_judgments']}")
         print(f"   - With compensation: {db_stats['total_compensations']}")
         print(f"   - Avg compensation: NT$ {db_stats['avg_compensation']:,}")

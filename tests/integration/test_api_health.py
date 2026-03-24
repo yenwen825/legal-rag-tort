@@ -39,8 +39,16 @@ def test_health_check_db_error(client, monkeypatch):
 
 
 def test_health_check_vector_cache_error(client, monkeypatch):
+    def mock_get_db_stats():
+        return {
+            'total_judgments': 10000,
+            'total_compensations': 1000,
+            'avg_compensation': 100000,
+            'db_size_mb': 100
+        }
     def mock_vector_cache_fail():
         raise Exception("Vector cache error")
+    monkeypatch.setattr(health, "get_db_stats", mock_get_db_stats)
     monkeypatch.setattr(health, "get_vector_cache", mock_vector_cache_fail)
     response = client.get('/api/health')
     assert response.status_code == 503
