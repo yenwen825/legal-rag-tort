@@ -43,16 +43,27 @@ legal-rag-tort/
 
 ### 1. 安裝依賴套件
 
+建議先建立虛擬環境：
+
+```bash
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate     # Windows
+```
+
+安裝套件：
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 2. 設定 OpenAI API Key
 
-建立 `.env` 檔案並填入你的 API Key:
+建立 `.env` 檔案並填入必要環境變數：
 
 ```bash
 OPENAI_API_KEY=sk-your-api-key-here
+SECRET_KEY=dev-secret-key-change-in-production
 ```
 
 ### 3. 準備原始判決資料
@@ -84,6 +95,21 @@ python app.py
 ```
 
 開啟瀏覽器前往: `http://localhost:5000`
+
+### 5. 開發與部署
+
+開發模式（自動重載）：
+
+```bash
+export FLASK_ENV=development
+python app.py
+```
+
+生產部署（Gunicorn）：
+
+```bash
+gunicorn -w 4 -b 0.0.0.0:5000 app:app
+```
 
 ## 💡 使用情境
 
@@ -127,9 +153,35 @@ python app.py
 3. **資料更新**: 判決資料需定期手動下載並重新執行 ETL 流程更新
 4. **僅供參考**: 本系統提供的結果僅供參考，最終判斷仍需律師專業評估
 
+## 🆘 常見錯誤排除
+
+### 1) `ImportError: No module named 'flask'`
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2) `openai.error.AuthenticationError`
+
+請檢查 `.env` 的 `OPENAI_API_KEY` 是否正確且可用。
+
+### 3) `sqlite3.OperationalError: no such table`
+
+```bash
+python etl/pipeline.py
+```
+
+### 4) 搜尋沒有結果
+
+請先確認是否已完成 ETL，並檢查資料筆數：
+
+```bash
+python -c "import sqlite3; conn = sqlite3.connect('legal_tort.db'); print(conn.execute('SELECT COUNT(*) FROM judgments').fetchone())"
+```
+
 ## 📝 License
 
-MIT License - 詳見 [LICENSE](LICENSE) 檔案
+目前尚未提供 `LICENSE` 檔案；授權條款待補充。
 
 ## 👨‍💻 開發者
 
