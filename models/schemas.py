@@ -185,6 +185,7 @@ class HealthCheckResponse(BaseModel):
     database: dict = Field(..., description="資料庫狀態")
     vector_cache_status: str = Field(..., description="向量快取狀態")
     vector_cache_count: int = Field(..., description="向量快取筆數")
+    redis: str = Field(..., description="Redis 狀態")
     version: str = Field(..., description="API 版本")
     timestamp: str = Field(..., description="檢查時間")
 
@@ -195,6 +196,7 @@ class HealthCheckResponse(BaseModel):
                 "database": {"total_judgments": 10000, "total_compensations": 1000, "avg_compensation": 100000, "db_size_mb": 100},
                 "vector_cache_status": "loaded",
                 "vector_cache_count": 100,
+                "redis": "ok",
                 "version": "1.0.0",
                 "timestamp": "2024-01-01T12:00:00",
             }
