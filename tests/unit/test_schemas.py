@@ -183,6 +183,7 @@ def test_health_check_response_valid():
         },
         vector_cache_status="loaded",
         vector_cache_count=1234,
+        redis="ok",
         version="1.0.0",
         timestamp="2026-01-01T12:00:00",
     )
@@ -196,6 +197,7 @@ def test_health_check_response_valid():
         },
         "vector_cache_status": "loaded",
         "vector_cache_count": 1234,
+        "redis": "ok",
         "version": "1.0.0",
         "timestamp": "2026-01-01T12:00:00",
     }
@@ -207,6 +209,7 @@ def test_health_check_response_invalid():
             status="ok",
             database={"total_judgments": 10000},
             vector_cache_status="loaded",
+            redis="ok",
             version="1.0.0",
             timestamp="2024-01-01T12:00:00",
         )
@@ -217,6 +220,7 @@ def test_health_check_response_invalid():
             database={"total_judgments": 10000},
             vector_cache_status="loaded",
             vector_cache_count="not-an-int",
+            redis="ok",
             version="1.0.0",
             timestamp="2024-01-01T12:00:00",
         )

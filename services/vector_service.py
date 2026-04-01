@@ -1,3 +1,4 @@
+from hashlib import sha256
 import numpy as np
 import logging
 from openai import OpenAI
@@ -5,11 +6,11 @@ from models.database import get_db
 from dotenv import load_dotenv
 import os
 from typing import Optional
+from services.redis_client import get_redis_client
 
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-
 # ===== vector cache (module-level variable) =====
 _vector_cache = None  # (ids, vector_matrix)
 
@@ -66,6 +67,15 @@ def query_embeddings(query: str) -> Optional[np.array]:
     returns:
         list of floats (1536 dimension vector)
     """
+    redis_client = get_redis_client()
+    hash_key = sha256(query.encode()).hexdigest()
+    if redis_client is not None:
+        try:
+            embedding = redis_client.get(f"embedding:{hash_key}")
+            if embedding is not None:
+                return np.frombuffer(embedding, dtype=np.float32)
+        except Exception as e:
+            logging.warning(f"Error querying embeddings from Redis: {e}")
     try:
         response = client.embeddings.create(
             model="text-embedding-3-small",
@@ -76,7 +86,13 @@ def query_embeddings(query: str) -> Optional[np.array]:
         if len(embedding) != 1536:
             logging.error(f"embedding dimension mismatch: {len(embedding)} != 1536")
             return None
-        return np.array(embedding, dtype=np.float32)
+        embedding_array = np.array(embedding, dtype=np.float32)
+        if redis_client is not None:
+            try:
+                redis_client.setex(f"embedding:{hash_key}", 60 * 60 * 24, embedding_array.tobytes())
+            except Exception as e:
+                logging.warning(f"Error storing embeddings in Redis: {e}")
+        return embedding_array
     except Exception as e:
         logging.error(f"Error querying embeddings: {e}")
         return None
