@@ -31,6 +31,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install -r requirements-dev.txt
 
     # Step 4: 執行 Ruff 語法與排版檢查 (Smoke Check)
     - name: 🧹 Run Ruff (Linting)
