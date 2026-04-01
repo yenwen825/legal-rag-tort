@@ -23,6 +23,7 @@ def test_health_check(client, tmp_path, monkeypatch):
     assert data['database'] is not None
     assert data['vector_cache_status'] == "loaded"
     assert data['vector_cache_count'] > 0
+    assert data['redis'] in ["ok", "down"]
     assert data['version'] == '1.0.0'
     assert data['timestamp'] is not None
 
@@ -55,3 +56,25 @@ def test_health_check_vector_cache_error(client, monkeypatch):
     data = response.get_json()
     assert data['status'] == "error"
     assert  "Vector cache error" in data['error']
+
+
+def test_health_check_redis_error(client, monkeypatch):
+    def mock_get_db_stats():
+        return {
+            'total_judgments': 10000,
+            'total_compensations': 1000,
+            'avg_compensation': 100000,
+            'db_size_mb': 100
+        }
+    def mock_get_vector_cache():
+        return [1, 2, 3], np.array([[1, 2, 3]])
+    def mock_get_redis_client_fail():
+        return None
+    monkeypatch.setattr(health, "get_db_stats", mock_get_db_stats)
+    monkeypatch.setattr(health, "get_vector_cache", mock_get_vector_cache)
+    monkeypatch.setattr(health, "get_redis_client", mock_get_redis_client_fail)
+    response = client.get('/api/health')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['status'] == "ok"
+    assert data['redis'] == "down"
