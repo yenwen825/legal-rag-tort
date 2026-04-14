@@ -3,6 +3,7 @@ from api import register_blueprints
 import os
 from dotenv import load_dotenv
 from services.judgment_service import get_judgment_by_id
+from extension import limiter
 
 load_dotenv()
 
@@ -10,6 +11,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 register_blueprints(app)
+limiter.init_app(app)
 
 @app.route('/')
 def index():

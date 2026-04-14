@@ -7,3 +7,4 @@ python-dotenv==1.0.0
 tenacity==8.2.3
 tqdm==4.66.1
 redis==7.4.0
+Flask-Limiter==4.1.1

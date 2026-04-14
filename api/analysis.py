@@ -2,12 +2,14 @@ from flask import Blueprint, jsonify, request
 from services.analyze_service import analyze
 from models.schemas import AnalysisRequest, AnalysisResponse, ErrorResponse
 from pydantic import ValidationError
+from extension import limiter
 import time
 import logging
 
 analysis_bp = Blueprint('analysis', __name__)
 
 @analysis_bp.route('/analyze', methods=['POST'])
+@limiter.limit("5 per minute, 50 per day")
 def analyze_endpoint():
     try:
         request_data = AnalysisRequest.model_validate(request.get_json())
