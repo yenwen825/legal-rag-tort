@@ -20,4 +20,4 @@ def judgment(id: int):
     return render_template('judgment.html', judgment=get_judgment_by_id(id))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=8080)
