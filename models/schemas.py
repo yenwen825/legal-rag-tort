@@ -215,3 +215,29 @@ class ErrorResponse(BaseModel):
             }
         }
     )
+
+class AnalysisRequest(BaseModel):
+    query: str = Field(..., description="使用者的查詢情境")
+    result_ids: List[int] = Field(..., description="要進行分析的判決 ID 列表 (通常為 Top 5)")
+
+    model_config = ConfigDict(
+        json_schema_extra = {
+            "example": {
+                "query": "原告懷疑被告外遇，長期gps定位被告的車，發現被告多次出入汽車旅館，法院是否會採用此證據作為判斷侵害配偶權之依據",
+                "result_ids": [683, 1, 589, 1317, 1406]
+            }
+        }
+    )
+
+class AnalysisResponse(BaseModel):
+    summary: str = Field(..., description="針對查詢的情境，基於判決全文產生的分析總結")
+    analysis_time_ms: int = Field(..., description="分析耗時（毫秒）")
+
+    model_config = ConfigDict(
+        json_schema_extra = {
+            "example": {
+                "summary": "法院對於原告使用GPS定位追蹤被告的行為及其所獲得的證據的採納，將依據證據的合法性及其對隱私權的影響進行評估...",
+                "analysis_time_ms": 19949
+            }
+        }
+    )
