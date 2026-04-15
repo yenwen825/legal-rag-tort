@@ -10,26 +10,29 @@ from services.redis_client import get_redis_client
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # ===== vector cache (module-level variable) =====
 _vector_cache = None  # (ids, vector_matrix)
+
 
 def get_vector_cache():
     global _vector_cache
     if _vector_cache is None:
         _vector_cache = load_vector_data()
-    
+
     return _vector_cache
+
 
 def clear_vector_cache():
     global _vector_cache
     _vector_cache = None
     logging.info("vector cache cleared")
 
+
 def load_vector_data():
     """
     load all vectors from the database, and directly form a NumPy matrix (without list)
-    
+
     returns:
         tuple: (ids, vector_matrix)
             ids: np.ndarray - shape (N,), database IDs
@@ -39,26 +42,27 @@ def load_vector_data():
         cursor = conn.cursor()
         cursor.execute("SELECT id, vector FROM judgments ORDER BY id")
         rows = cursor.fetchall()
-    
+
     n_rows = len(rows)
-    
+
     if n_rows == 0:
         logging.warning("no judgment data in the database")
         return np.array([]), np.array([]).reshape(0, 1536)
-    
+
     # pre-allocate memory: (N, 1536) matrix
     vector_matrix = np.empty((n_rows, 1536), dtype=np.float32)
     ids = np.empty(n_rows, dtype=np.int32)
-    
+
     # fill the matrix row by row: directly convert the BLOB to a NumPy array
     for i, row in enumerate(rows):
-        ids[i] = row['id']
+        ids[i] = row["id"]
         # convert the BLOB to a float32 array (length 1536)
-        vector_matrix[i] = np.frombuffer(row['vector'], dtype=np.float32)
-    
+        vector_matrix[i] = np.frombuffer(row["vector"], dtype=np.float32)
+
     logging.info(f"loaded {n_rows} vectors, matrix shape: {vector_matrix.shape}")
-    
-    return ids, vector_matrix 
+
+    return ids, vector_matrix
+
 
 def query_embeddings(query: str) -> Optional[np.array]:
     """
@@ -78,9 +82,7 @@ def query_embeddings(query: str) -> Optional[np.array]:
             logging.warning(f"Error querying embeddings from Redis: {e}")
     try:
         response = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=query,
-            encoding_format="float"
+            model="text-embedding-3-small", input=query, encoding_format="float"
         )
         embedding = response.data[0].embedding
         if len(embedding) != 1536:
@@ -89,7 +91,9 @@ def query_embeddings(query: str) -> Optional[np.array]:
         embedding_array = np.array(embedding, dtype=np.float32)
         if redis_client is not None:
             try:
-                redis_client.setex(f"embedding:{hash_key}", 60 * 60 * 24, embedding_array.tobytes())
+                redis_client.setex(
+                    f"embedding:{hash_key}", 60 * 60 * 24, embedding_array.tobytes()
+                )
             except Exception as e:
                 logging.warning(f"Error storing embeddings in Redis: {e}")
         return embedding_array
@@ -103,7 +107,7 @@ def cosine_similarity(query_vector, vector_matrix):
     args:
         query_vector: np.ndarray - shape (1536,)
         vector_matrix: np.ndarray - shape (N, 1536)
-    
+
     returns:
         np.ndarray - shape (N,), the cosine similarity between the query vector and all the vectors in the vector matrix (0~1)
     """
@@ -130,4 +134,3 @@ if __name__ == "__main__":
         sims = cosine_similarity(q, vector_matrix)
         print("similarities shape:", sims.shape)
         print("min similarity:", sims.min(), "max similarity:", sims.max())
-    

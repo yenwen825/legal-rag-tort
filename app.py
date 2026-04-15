@@ -3,21 +3,28 @@ from api import register_blueprints
 import os
 from dotenv import load_dotenv
 from services.judgment_service import get_judgment_by_id
+from extension import limiter
 
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config["SECRET_KEY"] = os.getenv(
+    "SECRET_KEY", "dev-secret-key-change-in-production"
+)
 
 register_blueprints(app)
+limiter.init_app(app)
 
-@app.route('/')
+
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/judgment/<int:id>')
+
+@app.route("/judgment/<int:id>")
 def judgment(id: int):
-    return render_template('judgment.html', judgment=get_judgment_by_id(id))
+    return render_template("judgment.html", judgment=get_judgment_by_id(id))
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=8080)

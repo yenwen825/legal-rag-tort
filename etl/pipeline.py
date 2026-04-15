@@ -17,32 +17,37 @@ from etl.court_parser import get_court
 load_dotenv()
 
 # 初始化 OpenAI client
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 # 配置 logging
 def setup_logging():
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+    log_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs"
+    )
     os.makedirs(log_dir, exist_ok=True)
-    
-    log_file = os.path.join(log_dir, f'pipeline_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
-    
+
+    log_file = os.path.join(
+        log_dir, f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    )
+
     # 同時輸出到檔案和終端
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
         handlers=[
-            logging.FileHandler(log_file, encoding='utf-8'),
-            logging.StreamHandler()
-        ]
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
     )
-    
+
     return log_file
 
 
 class GPTExtractedData(BaseModel):
     """GPT 萃取的判決資訊（用於 OpenAI Structured Output）"""
+
     compensation: int = Field(
         0,
         description="""
@@ -54,7 +59,7 @@ class GPTExtractedData(BaseModel):
         4. 有反訴抵銷：記錄抵銷前原始金額
         5. 不包含利息、訴訟費用
         6. 如原告敗訴或全部駁回：填 0
-        """
+        """,
     )
     facts: str = Field(
         ...,
@@ -73,7 +78,7 @@ class GPTExtractedData(BaseModel):
         - 用於語義搜尋，需包含足夠的關鍵字和上下文
         
         ⚠️ 重要：只摘要判決書中實際記載的內容，絕對不可添加、推測或想像任何資訊。
-        """
+        """,
     )
     reasoning: str = Field(
         ...,
@@ -99,7 +104,7 @@ class GPTExtractedData(BaseModel):
         - 長度控制在 300-600 字
         
         ⚠️ 重要：只摘要判決書中實際記載的內容，不可添加法院未提及的論述或見解。
-        """
+        """,
     )
     evidence_types: List[str] = Field(
         default_factory=list,
@@ -124,7 +129,7 @@ class GPTExtractedData(BaseModel):
         - ❌ 禁止：其他證據
         
         ⚠️ 只列出判決中實際提及的證據類型，不可臆測或添加判決中未提及的證據。
-        """
+        """,
     )
 
 
@@ -145,18 +150,18 @@ class JudgmentExtracted(BaseModel):
 
 
 def load_raw_judgments() -> List[Dict]:
-    base_dir = os.path.join(os.path.dirname(__file__), '..')
-    judgment_file = os.path.join(base_dir, 'data', 'judgments_all_spouse_tort.json')
-    
+    base_dir = os.path.join(os.path.dirname(__file__), "..")
+    judgment_file = os.path.join(base_dir, "data", "judgments_all_spouse_tort.json")
+
     if not os.path.exists(judgment_file):
         logging.error(f"找不到判決檔案: {judgment_file}")
         logging.error("請先執行 etl/fetch_data.py")
         return []
-    
+
     try:
-        with open(judgment_file, 'r', encoding='utf-8') as f:
+        with open(judgment_file, "r", encoding="utf-8") as f:
             judgments = json.load(f)
-        
+
         logging.info(f"載入 {len(judgments)} 筆原始判決")
         return judgments
     except Exception as e:
@@ -168,59 +173,59 @@ def load_raw_judgments() -> List[Dict]:
 def extract_judgment_info(raw_judgment: Dict) -> Optional[JudgmentExtracted]:
     try:
         # ===== 階段 1：直接從 JSON 取得基本資訊 =====
-        title = raw_judgment.get('JTITLE', '').strip()
-        date = raw_judgment.get('JDATE', '').strip()
-        
+        title = raw_judgment.get("JTITLE", "").strip()
+        date = raw_judgment.get("JDATE", "").strip()
+
         # 組合案號：{JYEAR}年度{JCASE}字第{JNO}號
-        jyear = raw_judgment.get('JYEAR', '').strip()
-        jcase = raw_judgment.get('JCASE', '').strip()
-        jno = raw_judgment.get('JNO', '').strip()
+        jyear = raw_judgment.get("JYEAR", "").strip()
+        jcase = raw_judgment.get("JCASE", "").strip()
+        jno = raw_judgment.get("JNO", "").strip()
         case_number = f"{jyear}年度{jcase}字第{jno}號"
-        
+
         # 取得判決全文
-        jfull = raw_judgment.get('JFULL', '').strip()
+        jfull = raw_judgment.get("JFULL", "").strip()
         if not jfull:
             logging.warning(f"判決內容為空: {case_number}")
             return None
-        
+
         # ===== 長度監控（記錄但不截斷）=====
         text_length = len(jfull)
         estimated_tokens = text_length * 3  # 中文字保守估計為 3 tokens
-        
+
         if estimated_tokens > 100000:
             logging.info(
                 f"⚠️  判決 {case_number} 較長 "
                 f"({text_length:,} 字, 約 {estimated_tokens:,} tokens)"
             )
-        
+
         if estimated_tokens > 125000:
             logging.warning(
                 f"⚠️⚠️  判決 {case_number} 非常長 "
                 f"({text_length:,} 字, 約 {estimated_tokens:,} tokens)，"
                 f"接近 gpt-4o-mini 的 128K token 限制，可能會被截斷或失敗"
             )
-        
+
         court = get_court(jfull, case_number)
- 
+
         # 取得判決主文（從「主文」到「事實」之間的內容）
         # 使用正則表達式匹配，允許「主文」和「事實」中間有空格或全形空格
         decision = ""
-        main_pattern = r'主[\s　]*文'  # 匹配「主文」「主　文」「主    文」等
-        fact_pattern = r'事[\s　]*實'  # 匹配「事實」「事　實」「事    實」等
-        
+        main_pattern = r"主[\s　]*文"  # 匹配「主文」「主　文」「主    文」等
+        fact_pattern = r"事[\s　]*實"  # 匹配「事實」「事　實」「事    實」等
+
         main_match = re.search(main_pattern, jfull)
         fact_match = re.search(fact_pattern, jfull)
-        
+
         if main_match and fact_match:
             start = main_match.start()
             end = fact_match.start()
             if end > start:
                 decision = jfull[start:end].strip()
-        
+
         if not decision:
             logging.warning(f"無法萃取判決主文: {case_number}")
             # 不 return None，繼續處理其他欄位
-        
+
         # ===== 階段 2：用 GPT-4o-mini 萃取判決內容 =====
         system_prompt = """你是在台灣執業的資深家事律師，專精於侵害配偶權案件。
 請從判決書中萃取資訊，並以繁體中文回答。
@@ -244,25 +249,25 @@ def extract_judgment_info(raw_judgment: Dict) -> Optional[JudgmentExtracted]:
    - 必須具體明確，禁止使用「其他」、「其他相關證據」等模糊描述
    - 只列出判決中實際提及的證據類型
    - 例如：「通訊記錄（LINE對話截圖）」、「汽車旅館住宿記錄」、「GPS定位記錄」、「手機翻拍畫面」等"""
-        
+
         user_prompt = f"""請萃取以下判決書的資訊：{jfull}"""
-        
+
         response = client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             response_format=GPTExtractedData,
-            temperature=0.1  # 降低隨機性，提高一致性
+            temperature=0.1,  # 降低隨機性，提高一致性
         )
-        
+
         gpt_data = response.choices[0].message.parsed
-        
+
         if not gpt_data:
             logging.warning(f"GPT 萃取失敗: {case_number}")
             return None
-        
+
         # ===== 階段 3：組合結果 =====
         return JudgmentExtracted(
             title=title,
@@ -273,13 +278,13 @@ def extract_judgment_info(raw_judgment: Dict) -> Optional[JudgmentExtracted]:
             facts=gpt_data.facts,
             reasoning=gpt_data.reasoning,
             decision=decision,  # 直接從 JFULL 切割取得
-            full_text=jfull,  
-            evidence_types=gpt_data.evidence_types
+            full_text=jfull,
+            evidence_types=gpt_data.evidence_types,
         )
-        
+
     except Exception as e:
         logging.error(f"萃取判決資訊時發生錯誤: {e}")
-        if 'case_number' in locals():
+        if "case_number" in locals():
             logging.error(f"問題案號: {case_number}")
         return None
 
@@ -288,23 +293,23 @@ def extract_judgment_info(raw_judgment: Dict) -> Optional[JudgmentExtracted]:
 def generate_embedding(judgment: JudgmentExtracted) -> Optional[List[float]]:
     """
     使用 OpenAI text-embedding-3-small 生成語義向量
-    
+
     向量化的內容：
     - 案情摘要 (facts)
     - 法律論述 (reasoning)
     - 證據類型 (evidence_types)
-    
+
     註：不包含 title，因為大部分侵害配偶權案件的案由都是
     「侵權行為損害賠償」等相似標題，對語義搜尋無幫助。
-    
+
     模型選擇：text-embedding-3-small (1536 維)
     - 成本：$0.020 / 1M tokens
     - 精度：足夠用於 2,000 筆判決的語義搜尋
     - Token 限制：8,191 tokens (遠大於實際需求 ~5,000 tokens)
-    
+
     Args:
         judgment: 已萃取的判決結構化資料
-    
+
     Returns:
         向量 (1536 維)，若失敗則回傳 None
     """
@@ -316,29 +321,29 @@ def generate_embedding(judgment: JudgmentExtracted) -> Optional[List[float]]:
 法律論述：
 {judgment.reasoning}
 
-證據類型：{', '.join(judgment.evidence_types) if judgment.evidence_types else '無'}"""
-        
+證據類型：{", ".join(judgment.evidence_types) if judgment.evidence_types else "無"}"""
+
         # ===== 文字長度檢查 =====
         # text-embedding-3-small 最多支援 8191 tokens
         # 粗估：1 中文字 ≈ 2-3 tokens，保守估計為 3
         estimated_tokens = len(embedding_text) * 3
-        
+
         if estimated_tokens > 8000:
             logging.warning(
                 f"案號 {judgment.case_number} 的文字過長 "
                 f"(約 {estimated_tokens} tokens)，將被截斷"
             )
             # OpenAI 會自動截斷，但我們記錄警告
-        
+
         # ===== 呼叫 OpenAI API =====
         response = client.embeddings.create(
             model="text-embedding-3-small",
             input=embedding_text,
-            encoding_format="float"  # 明確指定浮點數格式
+            encoding_format="float",  # 明確指定浮點數格式
         )
-        
+
         embedding = response.data[0].embedding
-        
+
         # ===== 驗證向量維度 =====
         if len(embedding) != 1536:
             logging.error(
@@ -346,23 +351,21 @@ def generate_embedding(judgment: JudgmentExtracted) -> Optional[List[float]]:
                 f"{len(embedding)} (預期 1536)"
             )
             return None
-        
+
         return embedding
-        
+
     except Exception as e:
-        logging.error(
-            f"生成向量時發生錯誤 (案號: {judgment.case_number}): {e}"
-        )
+        logging.error(f"生成向量時發生錯誤 (案號: {judgment.case_number}): {e}")
         return None
 
 
 def init_database():
-    db_path = os.path.join(os.path.dirname(__file__), '..', 'legal_tort.db')
-    
+    db_path = os.path.join(os.path.dirname(__file__), "..", "legal_tort.db")
+
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
-    cursor.execute('''
+
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS judgments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
@@ -379,46 +382,49 @@ def init_database():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(case_number, court)
         )
-    ''')
-    
+    """)
+
     conn.commit()
     conn.close()
-    
+
     logging.info(f"資料庫初始化完成: {db_path}")
 
 
 def save_to_database(judgments: List[JudgmentExtracted], vectors: List[List[float]]):
-    db_path = os.path.join(os.path.dirname(__file__), '..', 'legal_tort.db')
-    
+    db_path = os.path.join(os.path.dirname(__file__), "..", "legal_tort.db")
+
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+
     inserted_count = 0
     ignored_count = 0
-    
+
     for judgment, vector in zip(judgments, vectors):
         # 將向量轉為 float32 並序列化為二進位
         vector_blob = np.array(vector, dtype=np.float32).tobytes()
-        
-        cursor.execute('''
+
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO judgments 
             (title, case_number, court, date, compensation, 
              facts, reasoning, decision, full_text, evidence_types, vector)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            judgment.title,
-            judgment.case_number,
-            judgment.court,
-            judgment.date,
-            judgment.compensation,
-            judgment.facts,
-            judgment.reasoning,
-            judgment.decision,
-            judgment.full_text,
-            json.dumps(judgment.evidence_types, ensure_ascii=False),
-            vector_blob
-        ))
-        
+        """,
+            (
+                judgment.title,
+                judgment.case_number,
+                judgment.court,
+                judgment.date,
+                judgment.compensation,
+                judgment.facts,
+                judgment.reasoning,
+                judgment.decision,
+                judgment.full_text,
+                json.dumps(judgment.evidence_types, ensure_ascii=False),
+                vector_blob,
+            ),
+        )
+
         # 檢查是否成功插入
         if cursor.rowcount > 0:
             inserted_count += 1
@@ -427,10 +433,10 @@ def save_to_database(judgments: List[JudgmentExtracted], vectors: List[List[floa
             logging.warning(
                 f"⚠️  跳過重複判決: {judgment.case_number} ({judgment.court})"
             )
-    
+
     conn.commit()
     conn.close()
-    
+
     logging.info(f"✅ 已儲存 {inserted_count} 筆判決到資料庫（含向量）")
     if ignored_count > 0:
         logging.warning(f"⚠️  跳過 {ignored_count} 筆重複判決")
@@ -440,44 +446,44 @@ def main():
     """main function (supports batch saving and checkpoint resume)"""
     # 設定日誌
     log_file = setup_logging()
-    
+
     logging.info("=" * 70)
     logging.info("Legal RAG Tort - 資料清洗與向量化管道")
     logging.info("=" * 70)
     logging.info(f"日誌檔案: {log_file}")
-    
+
     # 1. 初始化資料庫
     init_database()
-    
+
     # 2. 載入原始判決
     raw_judgments = load_raw_judgments()
-    
+
     if not raw_judgments:
         logging.error("沒有找到原始判決資料，請先執行 etl/fetch_data.py")
         return
-    
+
     logging.info(f"📊 載入 {len(raw_judgments)} 筆判決")
 
     # raw_judgments = raw_judgments[:10]
     # logging.info(f"⚠️  測試模式：只處理前 {len(raw_judgments)} 筆")
-    
+
     # 3. 設定進度檔案路徑
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    progress_file = os.path.join(base_dir, 'data', 'pipeline_progress.json')
-    
+    progress_file = os.path.join(base_dir, "data", "pipeline_progress.json")
+
     # 4. 檢查是否有未完成的進度
     start_index = 0
     total_processed = 0
     failed_count = 0
-    
+
     if os.path.exists(progress_file):
         try:
-            with open(progress_file, 'r', encoding='utf-8') as f:
+            with open(progress_file, "r", encoding="utf-8") as f:
                 progress_data = json.load(f)
-                start_index = progress_data.get('last_index', 0)
-                total_processed = progress_data.get('total_processed', 0)
-                failed_count = progress_data.get('failed_count', 0)
-            
+                start_index = progress_data.get("last_index", 0)
+                total_processed = progress_data.get("total_processed", 0)
+                failed_count = progress_data.get("failed_count", 0)
+
             logging.info(f"📂 發現進度檔案，從第 {start_index + 1} 筆繼續處理...")
             logging.info(f"📊 已處理 {total_processed} 筆，失敗 {failed_count} 筆")
         except Exception as e:
@@ -485,26 +491,26 @@ def main():
             start_index = 0
             total_processed = 0
             failed_count = 0
-    
+
     # 5. 萃取與向量化（批次處理）
     logging.info(f"開始處理判決（總共 {len(raw_judgments)} 筆）...")
-    
+
     if start_index > 0:
         logging.info(f"⏭️  跳過前 {start_index} 筆判決（從進度檔案讀取）")
-    
+
     BATCH_SIZE = 50  # 每 50 筆存檔一次
     batch_judgments = []
     batch_vectors = []
-    
+
     # 從 start_index 開始處理（切片），並讓 enumerate 從正確的索引開始
     for idx, raw in enumerate(
         tqdm(
-            raw_judgments[start_index:], 
+            raw_judgments[start_index:],
             desc="處理中",
-            total=len(raw_judgments),      # 分母：總判決數
-            initial=start_index             # 起始值：從 start_index 開始顯示
-        ), 
-        start=start_index
+            total=len(raw_judgments),  # 分母：總判決數
+            initial=start_index,  # 起始值：從 start_index 開始顯示
+        ),
+        start=start_index,
     ):
         try:
             # 萃取資訊
@@ -512,51 +518,58 @@ def main():
             if not extracted:
                 failed_count += 1
                 continue
-            
+
             # 生成向量
             vector = generate_embedding(extracted)
             if not vector:
                 failed_count += 1
                 logging.warning(f"向量生成失敗: {extracted.case_number}")
                 continue
-            
+
             batch_judgments.append(extracted)
             batch_vectors.append(vector)
             total_processed += 1
-            
+
             # 每處理 BATCH_SIZE 筆就存檔一次
             if len(batch_judgments) >= BATCH_SIZE:
                 save_to_database(batch_judgments, batch_vectors)
-                
-                logging.info(f"💾 已儲存批次 ({len(batch_judgments)} 筆)，累計: {total_processed} 筆")
-                
+
+                logging.info(
+                    f"💾 已儲存批次 ({len(batch_judgments)} 筆)，累計: {total_processed} 筆"
+                )
+
                 # 儲存進度（輕量化：只記錄 last_index 和統計資料）
-                with open(progress_file, 'w', encoding='utf-8') as f:
-                    json.dump({
-                        'last_index': idx + 1,
-                        'total_processed': total_processed,
-                        'failed_count': failed_count
-                    }, f, ensure_ascii=False, indent=2)
-                
+                with open(progress_file, "w", encoding="utf-8") as f:
+                    json.dump(
+                        {
+                            "last_index": idx + 1,
+                            "total_processed": total_processed,
+                            "failed_count": failed_count,
+                        },
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+
                 # 清空批次緩存
                 batch_judgments = []
                 batch_vectors = []
-            
+
         except Exception as e:
             failed_count += 1
             logging.warning(f"處理失敗: {e}")
             continue
-    
+
     # 6. 儲存最後一批（如果有剩餘）
     if batch_judgments:
         save_to_database(batch_judgments, batch_vectors)
         logging.info(f"💾 已儲存最後批次 ({len(batch_judgments)} 筆)")
-    
+
     # 7. 刪除進度檔案（全部完成）
     if os.path.exists(progress_file):
         os.remove(progress_file)
         logging.info("🗑️  已刪除進度檔案")
-    
+
     # 8. 輸出統計
     logging.info("=" * 70)
     logging.info("✅ 完成")
