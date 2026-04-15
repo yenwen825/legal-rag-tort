@@ -1,4 +1,3 @@
-from models.schemas import SearchResponse
 from models.database import get_db
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -8,67 +7,72 @@ from hashlib import sha256
 import logging
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 def analyze(query: str, result_ids: list[int]):
     if not result_ids or not query:
         return None
     top_k = 5
     judgment_ids = [str(jid) for jid in result_ids][:top_k]
-    
+
     cache_string = f"{query}|{','.join(judgment_ids)}"
     hash_key = sha256(cache_string.encode()).hexdigest()
-    
+
     redis_client = get_redis_client()
     if redis_client is not None:
         try:
             generation = redis_client.get(f"generation:{hash_key}")
             if generation is not None:
-                return generation.decode('utf-8')
+                return generation.decode("utf-8")
         except Exception as e:
             logging.warning(f"Error querying generation from Redis: {e}")
-    
+
     # get full text by judgment id
     placeholders = ",".join(["?"] * len(judgment_ids))
     try:
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                f"SELECT id, full_text FROM judgments WHERE id IN ({placeholders})", 
-                judgment_ids
+                f"SELECT id, full_text FROM judgments WHERE id IN ({placeholders})",
+                judgment_ids,
             )
             rows = cursor.fetchall()
-            id_to_fulltext = {str(row['id']): row['full_text'] for row in rows}
+            id_to_fulltext = {str(row["id"]): row["full_text"] for row in rows}
     except Exception as e:
         logging.error(f"Error querying DB for full_text: {e}")
         return None
 
     context_blocks = []
-    MAX_CHARS = 15000  
-    
+    MAX_CHARS = 15000
+
     for i, jid in enumerate(judgment_ids, 1):
         ft = id_to_fulltext.get(jid, "無全文資料")
-        
+
         if len(ft) > MAX_CHARS:
             # 智慧截斷：台灣判決的開頭通常是當事人姓名、居住地與訴訟代理人等無用資訊。
             # 真正的內文通常從「事實及理由」或「理由」開始。我們嘗試尋找這些關鍵字來跳過開頭。
-            start_idx = ft.find('事實及理由')
+            start_idx = ft.find("事實及理由")
             if start_idx == -1:
-                start_idx = ft.find('理由\n') 
+                start_idx = ft.find("理由\n")
             if start_idx == -1:
                 start_idx = 0  # 找不到就從頭開始
 
             ft_core = ft[start_idx:]
-            
+
             # 經過濾除開頭後，如果還是太長（遇到極端長文），再進行去中保頭尾
             # 保留前 6000 字（通常包含原被告主張）與最後 9000 字（通常包含得心證之理由）
             if len(ft_core) > MAX_CHARS:
-                ft_core = ft_core[:6000] + "\n\n...(因文章過長，此處省略部分內文)...\n\n" + ft_core[-9000:]
-            
+                ft_core = (
+                    ft_core[:6000]
+                    + "\n\n...(因文章過長，此處省略部分內文)...\n\n"
+                    + ft_core[-9000:]
+                )
+
             ft = ft_core
-            
+
         context_blocks.append(f"===判決 {i} 開始===\n{ft}\n===判決 {i} 結束===")
-        
+
     context_str = "\n\n".join(context_blocks)
 
     try:
@@ -104,15 +108,14 @@ def analyze(query: str, result_ids: list[int]):
             temperature=0.1,
         )
         generation = response.choices[0].message.content
-        
+
         if redis_client is not None:
             try:
                 redis_client.set(f"generation:{hash_key}", generation, ex=86400)
             except Exception as e:
                 logging.warning(f"Error setting generation in Redis: {e}")
-                
+
         return generation
     except Exception as e:
         logging.error(f"Error analyzing query: {e}")
         return None
-    

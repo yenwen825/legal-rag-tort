@@ -1,11 +1,17 @@
-from services.vector_service import query_embeddings, get_vector_cache, cosine_similarity
+from services.vector_service import (
+    query_embeddings,
+    get_vector_cache,
+    cosine_similarity,
+)
 from models.schemas import JudgmentResult, SearchResponse, CompensationStats
 from models.database import get_db
 import statistics
 import json
 
 
-def search_judgments(query: str, top_k: int = 10, min_similarity: float = 0.0) -> SearchResponse:
+def search_judgments(
+    query: str, top_k: int = 10, min_similarity: float = 0.0
+) -> SearchResponse:
     ids, vector_matrix = get_vector_cache()
     q_embedding = query_embeddings(query)
     if q_embedding is None:
@@ -16,13 +22,13 @@ def search_judgments(query: str, top_k: int = 10, min_similarity: float = 0.0) -
                 median_compensation=0,
                 avg_compensation=0,
                 min_compensation=0,
-                max_compensation=0
+                max_compensation=0,
             ),
             query=query,
             search_time_ms=0,
         )
     sims = cosine_similarity(q_embedding, vector_matrix)
-    if  len(sims) == 0 or sims.max() < min_similarity:
+    if len(sims) == 0 or sims.max() < min_similarity:
         return SearchResponse(
             results=[],
             stats=CompensationStats(
@@ -30,7 +36,7 @@ def search_judgments(query: str, top_k: int = 10, min_similarity: float = 0.0) -
                 median_compensation=0,
                 avg_compensation=0,
                 min_compensation=0,
-                max_compensation=0
+                max_compensation=0,
             ),
             query=query,
             search_time_ms=0,
@@ -42,29 +48,36 @@ def search_judgments(query: str, top_k: int = 10, min_similarity: float = 0.0) -
 
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute(f"SELECT id, title, case_number, court, date, compensation, facts, reasoning, decision, evidence_types FROM judgments WHERE id IN ({placeholder})", top_k_ids)
+        cursor.execute(
+            f"SELECT id, title, case_number, court, date, compensation, facts, reasoning, decision, evidence_types FROM judgments WHERE id IN ({placeholder})",
+            top_k_ids,
+        )
         rows = cursor.fetchall()
 
     results = []
     compensations = []
 
-    id_to_row = {row['id']: row for row in rows}
+    id_to_row = {row["id"]: row for row in rows}
 
     for i, jid in enumerate(top_k_ids):
         row = id_to_row[jid]
-        results.append(JudgmentResult(
-            id=jid,
-            title=row['title'],
-            case_number=row['case_number'],
-            court=row['court'],
-            date=row['date'],
-            compensation=row['compensation'],
-            facts=row['facts'],
-            reasoning=row['reasoning'],
-            evidence_types=json.loads(row['evidence_types']) if row['evidence_types'] else None,
-            similarity=sims[top_k_idx[i]],
-        ))
-        compensations.append(row['compensation'])
+        results.append(
+            JudgmentResult(
+                id=jid,
+                title=row["title"],
+                case_number=row["case_number"],
+                court=row["court"],
+                date=row["date"],
+                compensation=row["compensation"],
+                facts=row["facts"],
+                reasoning=row["reasoning"],
+                evidence_types=json.loads(row["evidence_types"])
+                if row["evidence_types"]
+                else None,
+                similarity=sims[top_k_idx[i]],
+            )
+        )
+        compensations.append(row["compensation"])
 
     response = SearchResponse(
         results=results,
@@ -73,8 +86,8 @@ def search_judgments(query: str, top_k: int = 10, min_similarity: float = 0.0) -
             median_compensation=int(statistics.median(compensations)),
             avg_compensation=statistics.mean(compensations),
             min_compensation=min(compensations),
-            max_compensation=max(compensations)
-            ),
+            max_compensation=max(compensations),
+        ),
         query=query,
         search_time_ms=0,
     )

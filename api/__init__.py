@@ -3,8 +3,9 @@ from api.search import search_bp
 from api.judgment import judgment_bp
 from api.analysis import analysis_bp
 
+
 def register_blueprints(app):
-    app.register_blueprint(health_bp, url_prefix='/api')
-    app.register_blueprint(search_bp, url_prefix='/api')
-    app.register_blueprint(judgment_bp, url_prefix='/api')
-    app.register_blueprint(analysis_bp, url_prefix='/api')  
+    app.register_blueprint(health_bp, url_prefix="/api")
+    app.register_blueprint(search_bp, url_prefix="/api")
+    app.register_blueprint(judgment_bp, url_prefix="/api")
+    app.register_blueprint(analysis_bp, url_prefix="/api")
