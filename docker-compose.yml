@@ -5,19 +5,7 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
-      - REDIS_URL=redis://redis:6379/0
     env_file:
       - .env
     volumes:
       - ./legal_tort.db:/app/legal_tort.db
-    depends_on:
-      - redis
-  redis:
-    image: redis:7.4-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
-volumes:
-  redis_data:
