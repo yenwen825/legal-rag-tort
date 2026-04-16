@@ -1,0 +1,6 @@
+#!include:.gitignore
+
+!legal_tort.db
+
+.git/
+.github/
