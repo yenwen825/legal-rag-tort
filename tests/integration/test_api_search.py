@@ -74,7 +74,7 @@ def test_search_invalid_request(client, mock_db_with_data):
 
 
 def test_search_fail(client, mock_db_with_data, monkeypatch):
-    def mock_search_judgments_fail(query, top_k, min_similarity):
+    def mock_search_judgments_fail(query, first_top_k=20, final_top_k=10, min_similarity=0.0):
         raise Exception("Search error")
 
     monkeypatch.setattr(search, "search_judgments", mock_search_judgments_fail)
