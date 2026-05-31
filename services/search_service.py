@@ -7,33 +7,68 @@ from models.schemas import JudgmentResult, SearchResponse, CompensationStats
 from models.database import get_db
 import statistics
 import json
+import logging
 import cohere
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-cohere_client = cohere.ClientV2(os.getenv("COHERE_API_KEY"))
+logger = logging.getLogger(__name__)
+
+_cohere_client = None
+
+
+def _get_cohere_client():
+    global _cohere_client
+    if _cohere_client is None:
+        api_key = os.getenv("COHERE_API_KEY")
+        if not api_key:
+            return None
+        _cohere_client = cohere.ClientV2(api_key)
+    return _cohere_client
 
 
 def rerank_judgments(
     judgments: list[JudgmentResult], query: str, final_top_k: int = 10
 ) -> list[JudgmentResult]:
+    fallback = judgments[:final_top_k]
+    if not judgments:
+        return fallback
+
+    client = _get_cohere_client()
+    if client is None:
+        logger.warning(
+            "Cohere rerank skipped: COHERE_API_KEY not set; "
+            "returning vector results (candidates=%d, final_top_k=%d)",
+            len(judgments),
+            final_top_k,
+        )
+        return fallback
+
     docs = []
     for judgment in judgments:
         docs.append(
             f"案件事實: {judgment.facts}\n\n判決理由: {judgment.reasoning}\n\n證據: {judgment.evidence_types}"
         )
-    ranked_docs = cohere_client.rerank(
-        model="rerank-multilingual-v3.0",
-        query=query,
-        documents=docs,
-        top_n=final_top_k,
-    )
-    ranked_judgments = []
-    for ranked_doc in ranked_docs.results:
-        ranked_judgments.append(judgments[ranked_doc.index])
-    return ranked_judgments
+
+    try:
+        ranked_docs = client.rerank(
+            model="rerank-multilingual-v3.0",
+            query=query,
+            documents=docs,
+            top_n=final_top_k,
+        )
+        return [judgments[ranked_doc.index] for ranked_doc in ranked_docs.results]
+    except Exception:
+        logger.exception(
+            "Cohere rerank failed; returning vector results "
+            "(candidates=%d, final_top_k=%d, query_len=%d)",
+            len(judgments),
+            final_top_k,
+            len(query),
+        )
+        return fallback
 
 
 def search_judgments(

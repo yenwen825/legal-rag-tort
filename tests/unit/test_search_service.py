@@ -1,5 +1,5 @@
 from services import search_service
-from services.search_service import search_judgments
+from services.search_service import rerank_judgments, search_judgments
 import numpy as np
 from models import database
 from models.database import get_db
@@ -85,6 +85,11 @@ def test_search_judgments_parameters(tmp_path, monkeypatch):
         "query_embeddings",
         lambda x: np.random.rand(1536).astype(np.float32),
     )
+    monkeypatch.setattr(
+        search_service,
+        "rerank_judgments",
+        lambda judgments, query, final_top_k=10: judgments[:final_top_k],
+    )
     query = "配偶透過交友軟體認識網友，兩人多次相約去汽車旅館休息，原告握有發票、信用卡刷卡紀錄以及汽車旅館的監視器畫面"
     first_top_k = 20
     final_top_k = 10
@@ -135,6 +140,11 @@ def test_search_judgments_stats(tmp_path, monkeypatch):
         search_service,
         "query_embeddings",
         lambda x: np.random.rand(1536).astype(np.float32),
+    )
+    monkeypatch.setattr(
+        search_service,
+        "rerank_judgments",
+        lambda judgments, query, final_top_k=10: judgments[:final_top_k],
     )
 
     with get_db() as conn:
@@ -218,3 +228,42 @@ def test_search_judgments_stats(tmp_path, monkeypatch):
         response.model_dump()["query"]
         == "配偶透過交友軟體認識網友，兩人多次相約去汽車旅館休息，原告握有發票、信用卡刷卡紀錄以及汽車旅館的監視器畫面"
     )
+
+
+def test_rerank_judgments_fallback_on_api_error(monkeypatch):
+    from models.schemas import JudgmentResult
+
+    judgments = [
+        JudgmentResult(
+            id=1,
+            title="案由1",
+            case_number="案號1",
+            court="臺灣新北地方法院",
+            compensation=100000,
+            facts="事實1",
+            reasoning="理由1",
+            evidence_types=["定位截圖"],
+            similarity=0.9,
+        ),
+        JudgmentResult(
+            id=2,
+            title="案由2",
+            case_number="案號2",
+            court="臺灣新北地方法院",
+            compensation=200000,
+            facts="事實2",
+            reasoning="理由2",
+            evidence_types=["定位截圖"],
+            similarity=0.8,
+        ),
+    ]
+
+    class FailingClient:
+        def rerank(self, **kwargs):
+            raise RuntimeError("Cohere unavailable")
+
+    monkeypatch.setattr(search_service, "_get_cohere_client", lambda: FailingClient())
+
+    result = rerank_judgments(judgments, "測試查詢", final_top_k=1)
+
+    assert [r.id for r in result] == [1]
