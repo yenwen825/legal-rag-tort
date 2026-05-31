@@ -86,12 +86,13 @@ def test_search_judgments_parameters(tmp_path, monkeypatch):
         lambda x: np.random.rand(1536).astype(np.float32),
     )
     query = "配偶透過交友軟體認識網友，兩人多次相約去汽車旅館休息，原告握有發票、信用卡刷卡紀錄以及汽車旅館的監視器畫面"
-    top_k = 10
+    first_top_k = 20
+    final_top_k = 10
     min_similarity = 0.3
-    response = search_judgments(query, top_k, min_similarity)
+    response = search_judgments(query, first_top_k, final_top_k, min_similarity)
     assert response is not None
     assert response.query == query
-    assert len(response.results) <= top_k
+    assert len(response.results) <= final_top_k
     for r in response.results:
         assert r.similarity >= min_similarity
 
@@ -103,6 +104,7 @@ def test_search_judgments_no_result(monkeypatch):
     monkeypatch.setattr(search_service, "query_embeddings", lambda x: None)
     response = search_judgments(
         "配偶透過交友軟體認識網友，兩人多次相約去汽車旅館休息，原告握有發票、信用卡刷卡紀錄以及汽車旅館的監視器畫面",
+        20,
         10,
         0.5,
     )
@@ -201,6 +203,7 @@ def test_search_judgments_stats(tmp_path, monkeypatch):
         )
     response = search_judgments(
         "配偶透過交友軟體認識網友，兩人多次相約去汽車旅館休息，原告握有發票、信用卡刷卡紀錄以及汽車旅館的監視器畫面",
+        20,
         10,
         0.0,
     )

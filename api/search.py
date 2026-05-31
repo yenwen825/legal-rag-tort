@@ -11,7 +11,10 @@ def search():
     try:
         request_data = SearchRequest.model_validate(request.get_json())
         response: SearchResponse = search_judgments(
-            request_data.query, request_data.top_k, request_data.min_similarity
+            query=request_data.query,
+            first_top_k=request_data.top_k,
+            final_top_k=10,
+            min_similarity=request_data.min_similarity,
         )
         return jsonify(response.model_dump()), 200
     except ValidationError as e:

@@ -7,10 +7,40 @@ from models.schemas import JudgmentResult, SearchResponse, CompensationStats
 from models.database import get_db
 import statistics
 import json
+import cohere
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+cohere_client = cohere.ClientV2(os.getenv("COHERE_API_KEY"))
+
+
+def rerank_judgments(
+    judgments: list[JudgmentResult], query: str, final_top_k: int = 10
+) -> list[JudgmentResult]:
+    docs = []
+    for judgment in judgments:
+        docs.append(
+            f"案件事實: {judgment.facts}\n\n判決理由: {judgment.reasoning}\n\n證據: {judgment.evidence_types}"
+        )
+    ranked_docs = cohere_client.rerank(
+        model="rerank-multilingual-v3.0",
+        query=query,
+        documents=docs,
+        top_n=final_top_k,
+    )
+    ranked_judgments = []
+    for ranked_doc in ranked_docs.results:
+        ranked_judgments.append(judgments[ranked_doc.index])
+    return ranked_judgments
 
 
 def search_judgments(
-    query: str, top_k: int = 10, min_similarity: float = 0.0
+    query: str,
+    first_top_k: int = 20,
+    final_top_k: int = 10,
+    min_similarity: float = 0.0,
 ) -> SearchResponse:
     ids, vector_matrix = get_vector_cache()
     q_embedding = query_embeddings(query)
@@ -41,7 +71,7 @@ def search_judgments(
             query=query,
             search_time_ms=0,
         )
-    top_k_idx = sims.argsort()[-top_k:][::-1]
+    top_k_idx = sims.argsort()[-first_top_k:][::-1]
     top_k_ids = ids[top_k_idx].tolist()
 
     placeholder = ", ".join(["?"] * len(top_k_ids))
@@ -55,8 +85,6 @@ def search_judgments(
         rows = cursor.fetchall()
 
     results = []
-    compensations = []
-
     id_to_row = {row["id"]: row for row in rows}
 
     for i, jid in enumerate(top_k_ids):
@@ -77,10 +105,14 @@ def search_judgments(
                 similarity=sims[top_k_idx[i]],
             )
         )
-        compensations.append(row["compensation"])
+
+    reranked_judgments = rerank_judgments(results, query, final_top_k)
+    compensations = []
+    for judgment in reranked_judgments:
+        compensations.append(judgment.compensation)
 
     response = SearchResponse(
-        results=results,
+        results=reranked_judgments,
         stats=CompensationStats(
             total=len(compensations),
             median_compensation=int(statistics.median(compensations)),
@@ -97,9 +129,10 @@ def search_judgments(
 
 if __name__ == "__main__":
     query = "老公多次和小三外出逛街，沒有證據證明性行為，但是有對話紀錄截圖和相擁照片"
-    top_k = 10
+    first_top_k = 20
+    final_top_k = 10
     min_similarity = 0.0
-    response = search_judgments(query, top_k, min_similarity)
+    response = search_judgments(query, first_top_k, final_top_k, min_similarity)
 
     print(f"查詢: {response.query}")
     print(f"結果數: {len(response.results)}")
